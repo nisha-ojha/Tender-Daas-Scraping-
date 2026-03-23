@@ -1,0 +1,28 @@
+# Virtual environment
+venv/
+
+# Environment variables (contains passwords!)
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Log files
+logs/*.log
+logs/*.gz
+
+# Storage data (too large for Git)
+storage/raw_snapshots/*.html
+storage/pdfs/*.pdf
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS junk
+Thumbs.db
+.DS_Store
+desktop.ini
