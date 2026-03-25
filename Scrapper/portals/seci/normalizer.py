@@ -7,6 +7,7 @@ HANDLES:
   - Listing page data (title, ref, dates from table)
   - Detail page data (EMD, bid dates, CPPP ID, documents)
   - Tender status mapping (live→open, archive→closed, result→awarded)
+  - SECI's swapped label-value issue (some tables have value→label order)
 """
 
 import re
@@ -86,10 +87,6 @@ def transform_raw_to_tender(raw, batch_id):
     title_clean = make_clean_title(title)
 
     # ── Get detail page data ──
-    # The scraper stores detail fields as a FLAT dict:
-    #   detail["Tender Publication Date"] = "10/03/2026 15:50:31"
-    #   detail["EMD"] = "INR 1,42,50,000"
-    #   detail["Tender ID On CPPP"] = "2026_SECI_829629_1"
     detail = raw.get("detail", {})
 
     # ── Parse dates from LISTING ──
@@ -99,20 +96,24 @@ def transform_raw_to_tender(raw, batch_id):
 
     # ── Override dates from DETAIL page (more accurate, has exact time) ──
     if detail:
-        pub_detail = detail.get("Tender Publication Date")
+        pub_detail = get_detail_value(detail, "Tender Publication Date")
         if pub_detail:
             date_published = parse_date(pub_detail) or date_published
 
-        deadline_detail = detail.get("Bid Submission End Date (Online)")
+        deadline_detail = get_detail_value(detail, "Bid Submission End Date (Online)")
         if deadline_detail:
             deadline = parse_datetime_ist(deadline_detail) or deadline
 
-        bid_open = detail.get("Bid Open Date")
+        bid_open = get_detail_value(detail, "Bid Open Date")
         if bid_open:
             bid_opening_date = parse_date(bid_open)
 
     # ── Parse EMD amount from detail page ──
-    emd_raw = detail.get("EMD") or detail.get("EMD Amount") or raw.get("emd_amount")
+    emd_raw = (
+        get_detail_value(detail, "EMD")
+        or get_detail_value(detail, "EMD Amount")
+        or raw.get("emd_amount")
+    )
     emd_amount = parse_amount(emd_raw) if emd_raw else None
     value_display = format_inr(emd_amount) if emd_amount else None
 
@@ -133,8 +134,18 @@ def transform_raw_to_tender(raw, batch_id):
     }
     db_status = status_map.get(tender_status, "open")
 
-    # ── Documents ──
-    doc_urls = raw.get("document_urls", [])
+    # ── Documents from detail page ──
+    doc_list = detail.get("documents", [])
+    announcement_list = detail.get("announcements", [])
+    all_docs = doc_list + announcement_list
+    doc_urls = [d["url"] for d in all_docs if d.get("url")]
+
+    # Also include listing page links
+    listing_docs = raw.get("document_urls", [])
+    for url in listing_docs:
+        if url not in doc_urls:
+            doc_urls.append(url)
+
     detail_url = raw.get("detail_url", "")
 
     # ── Build niche_metadata (SECI-specific fields) ──
@@ -148,22 +159,28 @@ def transform_raw_to_tender(raw, batch_id):
         niche_metadata["tender_status_original"] = tender_status
 
     # CPPP Tender ID (for cross-portal deduplication)
-    cppp_id = detail.get("Tender ID On CPPP") or detail.get("CPPP Tender ID")
+    cppp_id = (
+        get_detail_value(detail, "Tender ID On CPPP")
+        or get_detail_value(detail, "CPPP Tender ID")
+    )
     if cppp_id:
         niche_metadata["cppp_tender_id"] = clean_text(cppp_id)
 
     # Full description from detail page
-    full_desc = detail.get("Tender Description")
+    full_desc = get_detail_value(detail, "Tender Description")
     if full_desc:
         niche_metadata["full_description"] = full_desc[:2000]
 
     # Pre-bid meeting date
-    prebid = detail.get("Pre Bid Meeting Date")
+    prebid = get_detail_value(detail, "Pre Bid Meeting Date")
     if prebid:
         niche_metadata["pre_bid_date"] = prebid
 
     # Tender fee
-    fee_raw = detail.get("Tender Fee") or detail.get("Tender Fee/Bid Processing Fee")
+    fee_raw = (
+        get_detail_value(detail, "Tender Fee")
+        or get_detail_value(detail, "Tender Fee/Bid Processing Fee")
+    )
     if fee_raw:
         fee_amount = parse_amount(fee_raw)
         if fee_amount is not None:
@@ -171,9 +188,17 @@ def transform_raw_to_tender(raw, batch_id):
         niche_metadata["tender_fee_raw"] = fee_raw
 
     # Offline submission date
-    offline_date = detail.get("Bid Submission End Date (Offline)")
+    offline_date = get_detail_value(detail, "Bid Submission End Date (Offline)")
     if offline_date:
         niche_metadata["bid_submission_offline"] = offline_date
+
+    # Documents with names and dates
+    if all_docs:
+        niche_metadata["documents"] = all_docs
+
+    # Corrigendum count
+    if announcement_list:
+        niche_metadata["corrigendum_count"] = len(announcement_list)
 
     # Store ALL detail page fields (so nothing is lost)
     if detail and "_error" not in detail:
@@ -199,7 +224,7 @@ def transform_raw_to_tender(raw, batch_id):
         "bid_opening_date": bid_opening_date,
         "category": classify_tender(title, full_desc),
         "subcategory": None,
-        "tender_type": detail.get("Tender Type"),
+        "tender_type": get_detail_value(detail, "Tender Type"),
         "state": extract_state(title, full_desc),
         "district": None,
         "niche_metadata": json.dumps(niche_metadata),
@@ -219,6 +244,36 @@ def transform_raw_to_tender(raw, batch_id):
 # ═══════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════
+
+def get_detail_value(detail, label):
+    """
+    Get a value from the detail dict, handling SECI's swapped label-value issue.
+
+    SECI's detail page tables sometimes store data as:
+      {"Tender Publication Date": "10/03/2026"}     ← normal (label→value)
+    But other tables store it swapped:
+      {"Rs. 59,000": "EMD"}                         ← swapped (value→label)
+      {"10/03/2026 15:50:31": "Pre Bid Meeting Date"} ← swapped
+
+    This function checks both orientations.
+    """
+    if not detail or not label:
+        return None
+
+    # Try normal: detail["EMD"] → "Rs. 59,000"
+    value = detail.get(label)
+    if value and value not in ("documents", "announcements", "all_links", "_error"):
+        # Make sure we didn't pick up a non-data key
+        if not isinstance(value, (list, dict)):
+            return value
+
+    # Try swapped: find a key whose VALUE equals the label
+    for key, val in detail.items():
+        if isinstance(val, str) and val == label:
+            return key  # The key IS the actual value
+
+    return None
+
 
 def clean_text(text):
     """Remove extra whitespace, newlines, tabs."""

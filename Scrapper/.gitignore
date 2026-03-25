@@ -26,3 +26,15 @@ storage/pdfs/*.pdf
 Thumbs.db
 .DS_Store
 desktop.ini
+
+
+
+
+# Ignore all HTML snapshot files
+storage/raw_snapshots/*.html
+
+# (Optional) Ignore all PDFs if needed
+storage/pdfs/*.pdf
+
+# If you want to ignore ALL html files anywhere
+*.html
