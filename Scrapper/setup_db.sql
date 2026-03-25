@@ -184,7 +184,9 @@ CREATE INDEX IF NOT EXISTS idx_raw_unprocessed ON raw_records(processed) WHERE p
 CREATE INDEX IF NOT EXISTS idx_raw_batch ON raw_records(batch_id);
 CREATE INDEX IF NOT EXISTS idx_scraper_runs_batch ON scraper_runs(batch_id);
 
-
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenders_unique_ref
+    ON tenders (reference_number, organization_short)
+    WHERE reference_number IS NOT NULL;
 -- ============================================
 -- AUTO-UPDATE FUNCTIONS
 -- ============================================

@@ -95,6 +95,10 @@ def insert_tender(conn, tender_data):
     Returns:
         The UUID of the inserted tender, or None if it was a duplicate
     """
+    # Guard: skip if no reference number
+    if not tender_data.get("reference_number"):
+        return None
+
     cur = conn.cursor()
     try:
         cur.execute(
@@ -120,7 +124,7 @@ def insert_tender(conn, tender_data):
                 %(source_portal)s, %(source_url)s, %(all_sources)s,
                 %(status)s, %(hash)s, %(batch_id)s
             )
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (reference_number, organization_short) DO NOTHING
             RETURNING id
             """,
             tender_data,
