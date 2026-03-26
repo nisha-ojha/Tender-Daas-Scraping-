@@ -35,3 +35,26 @@ storage/raw_snapshots/*.html
 
 # (Optional) Ignore all PDFs if needed
 storage/pdfs/*.pdf
+
+
+# PDF storage — never commit downloaded PDFs
+storage/pdfs/
+storage/raw_snapshots/
+storage/detail_pages/
+
+# Logs
+logs/
+
+# Environment
+.env
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# VS Code
+.vscode/

@@ -145,6 +145,13 @@ def transform_raw_to_tender(raw, batch_id):
     for url in listing_docs:
         if url not in doc_urls:
             doc_urls.append(url)
+        # Save full doc objects for PDF downloader
+    if all_docs:
+        niche_metadata["documents"] = all_docs
+    if announcement_list:
+        niche_metadata["announcements"] = announcement_list
+        niche_metadata["corrigendum_count"] = len(announcement_list)
+
 
     detail_url = raw.get("detail_url", "")
 

@@ -1,20 +1,7 @@
 """
 core/pipeline.py
 ----------------
-The engine that runs each stage of the pipeline in order.
-
-HOW IT WORKS:
-  1. Opens a database transaction (all-or-nothing envelope)
-  2. Runs Stage 1: Scrape → saves raw records
-  3. Runs Stage 2: Normalize → cleans data into tenders table
-  4. Runs Stage 3: Deduplicate (placeholder — Week 3)
-  5. If ALL stages pass → COMMIT (save everything)
-  6. If ANY stage fails → ROLLBACK (undo everything)
-
-ADDING A NEW PORTAL:
-  Just create portals/new_portal/scraper.py and normalizer.py
-  Then run: python main.py --portal new_portal
-  importlib auto-discovers the portal — no changes needed here.
+Pipeline runner: Scrape → Normalize → PDF Download → PDF Parse → Dedup
 """
 
 import importlib
@@ -22,25 +9,10 @@ import traceback
 from datetime import datetime
 
 from core.db import get_connection, log_scraper_run
-from core.alerts import alert_success, alert_error, alert_info
 
 
 def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
-    """
-    Run the full scraping pipeline for a given portal.
 
-    Args:
-        portal:   Name of the portal ('seci', 'cppp', etc.)
-                  Must match a folder name under portals/
-        batch_id: Unique ID for this run (for tracking & rollback)
-        stages:   Which stages to run ('all', 'scrape', 'normalize', 'dedup')
-
-    Returns:
-        dict: {"new": int, "updated": int, "errors": int, "raw_records": int}
-
-    Raises:
-        Exception if any stage fails (after rollback is done)
-    """
     print(f"\n{'='*60}")
     print(f"  PIPELINE START: {portal.upper()}")
     print(f"  Batch:  {batch_id}")
@@ -48,59 +20,125 @@ def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
     print(f"  Time:   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
 
-    result = {"new": 0, "updated": 0, "errors": 0, "raw_records": 0}
+    result = {
+        "new": 0,
+        "updated": 0,
+        "errors": 0,
+        "raw_records": 0,
+        "pdfs_downloaded": 0,
+        "pdfs_parsed": 0,
+    }
 
-    # ── Load portal modules ───────────────────────────────────────────
-    # importlib.import_module dynamically loads portals/seci/scraper.py etc.
-    # When you add portals/cppp/scraper.py, this discovers it automatically.
+    # ── Load portal modules ─────────────────────────────────────
     try:
         scraper_mod = importlib.import_module(f"portals.{portal}.scraper")
         normalizer_mod = importlib.import_module(f"portals.{portal}.normalizer")
     except ModuleNotFoundError as e:
-        msg = (
-            f"Portal '{portal}' not found. "
-            f"Make sure portals/{portal}/scraper.py and normalizer.py exist.\n"
-            f"Error: {e}"
-        )
-        print(f"  [ERROR] {msg}")
-        raise ModuleNotFoundError(msg)
+        raise Exception(f"Portal '{portal}' not found: {e}")
 
-    # ── Open database transaction ─────────────────────────────────────
     conn = get_connection()
 
     try:
-        conn.autocommit = False  # All stages share one transaction
+        conn.autocommit = False
 
-        # ── Stage 1: SCRAPE ──────────────────────────────────────────
+        # ============================================================
+        # STAGE 1: SCRAPE
+        # ============================================================
         if stages in ("all", "scrape"):
             print(f"  ── Stage 1: SCRAPE ({portal.upper()}) ──")
             raw_count = scraper_mod.scrape(conn=conn, batch_id=batch_id)
             result["raw_records"] = raw_count
-            print(f"  ── Stage 1 DONE: {raw_count} raw records saved ──\n")
+            print(f"  ── DONE: {raw_count} raw records ──\n")
 
-        # ── Stage 2: NORMALIZE ───────────────────────────────────────
+        # ============================================================
+        # STAGE 2: NORMALIZE
+        # ============================================================
         if stages in ("all", "normalize"):
             print(f"  ── Stage 2: NORMALIZE ({portal.upper()}) ──")
             norm_result = normalizer_mod.normalize(conn=conn, batch_id=batch_id)
             result["new"] = norm_result.get("new", 0)
             result["errors"] = norm_result.get("errors", 0)
-            print(f"  ── Stage 2 DONE: {result['new']} new tenders ──\n")
+            print(f"  ── DONE: {result['new']} tenders ──\n")
 
-        # ── Stage 3: DEDUPLICATE ──────────────────────────────────────
+        # ============================================================
+        # STAGE 3: PDF DOWNLOAD
+        # ============================================================
+        if stages in ("all", "pdf"):
+            print(f"  ── Stage 3: PDF DOWNLOAD ({portal.upper()}) ──")
+
+            from core.pdf.downloader import run_download_stage
+
+            pdf_result = run_download_stage(conn, batch_id)
+            result["pdfs_downloaded"] = pdf_result.get("downloaded", 0)
+
+            print(f"  ── DONE: {result['pdfs_downloaded']} PDFs downloaded ──\n")
+
+        # ============================================================
+        # STAGE 4: PDF PARSE
+        # ============================================================
+        if stages in ("all", "pdf"):
+            print(f"  ── Stage 4: PDF PARSE ({portal.upper()}) ──")
+
+            from core.pdf.parser_rfs import parse_rfs_pdf, apply_rfs_data_to_tender
+            from core.pdf.classifier import classify_pdf_file
+            import psycopg2.extras
+
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            cur.execute("""
+                SELECT id, tender_id, local_path, doc_name
+                FROM tender_documents
+                WHERE downloaded = TRUE
+                  AND parsed = FALSE
+                LIMIT 50
+            """)
+
+            docs = cur.fetchall()
+            cur.close()
+
+            parsed_count = 0
+
+            for doc in docs:
+                if not doc["local_path"]:
+                    continue
+
+                doc_type = classify_pdf_file(doc["local_path"], doc["doc_name"])
+
+                if doc_type in ("RfS", "RfP", "NIT"):
+                    data = parse_rfs_pdf(doc["local_path"])
+
+                    if data and "_parse_error" not in data:
+                        apply_rfs_data_to_tender(conn, doc["tender_id"], data)
+                        parsed_count += 1
+
+                cur2 = conn.cursor()
+                cur2.execute(
+                    "UPDATE tender_documents SET parsed=TRUE, parsed_at=NOW() WHERE id=%s",
+                    (doc["id"],)
+                )
+                cur2.close()
+
+            result["pdfs_parsed"] = parsed_count
+
+            print(f"  ── DONE: {parsed_count} PDFs parsed ──\n")
+
+        # ============================================================
+        # STAGE 5: DEDUP (placeholder)
+        # ============================================================
         if stages in ("all", "dedup"):
-            print(f"  ── Stage 3: DEDUPLICATE (not built yet — skipping) ──\n")
+            print(f"  ── Stage 5: DEDUP (not built yet) ──\n")
 
-        # ── ALL STAGES PASSED → COMMIT ────────────────────────────────
+        # ============================================================
+        # COMMIT
+        # ============================================================
         conn.commit()
-        print(f"  ✓ COMMITTED: All changes saved to database.")
+        print("  ✓ COMMITTED")
 
-        # Log the successful run using a FRESH connection.
-        # Reason: conn is closed in the finally block below. If we pass conn
-        # here, log_scraper_run() would crash on a closed connection.
+        # Log success
         log_conn = get_connection()
         try:
             log_scraper_run(
-                conn=log_conn,        # ← fresh conn, NOT the transaction conn
+                conn=log_conn,
                 portal=portal,
                 batch_id=batch_id,
                 status="success",
@@ -114,14 +152,12 @@ def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
         return result
 
     except Exception as e:
-        # ── ANY STAGE FAILED → ROLLBACK ───────────────────────────────
         conn.rollback()
-        error_detail = traceback.format_exc()
-        print(f"\n  ✗ ROLLED BACK: All changes undone.")
-        print(f"  Error: {e}")
-        print(f"  Traceback:\n{error_detail}")
 
-        # Log the failed run independently (its own connection + commit)
+        print("\n  ✗ ROLLED BACK")
+        print(f"  Error: {e}")
+        print(traceback.format_exc())
+
         try:
             log_conn = get_connection()
             log_scraper_run(
@@ -134,12 +170,13 @@ def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
             )
             log_conn.close()
         except Exception:
-            print("  [WARNING] Could not log failed run to database")
+            print("  [WARNING] Failed to log error")
 
-        raise  # Re-raise so main.py / scheduler.py can send the alert
+        raise
 
     finally:
         conn.close()
+
         print(f"\n{'='*60}")
         print(f"  PIPELINE END: {portal.upper()}")
         print(f"{'='*60}\n")

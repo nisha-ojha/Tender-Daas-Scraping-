@@ -1,27 +1,25 @@
-# Core scraping
-playwright==1.52.0
-beautifulsoup4==4.13.4
+# Scraping
+playwright
+beautifulsoup4
+requests
 
 # Database
-psycopg2-binary==2.9.10
-
-# Date & text parsing
-python-dateutil==2.9.0.post0
+psycopg2-binary
 
 # PDF processing
-pdfplumber==0.11.6
+pdfplumber
+pypdf2
 
-# HTTP requests (for webhooks & downloads)
-requests==2.32.3
+# Environment
+python-dotenv
 
-# Environment variable management
-python-dotenv==1.1.0
+# Dashboard API
+fastapi
+uvicorn[standard]
 
-# Scheduling (optional, cron is better on Linux)
-schedule==1.2.2
+# Scheduler
+apscheduler==3.10.4
+pytz
 
-# Dashboard API (Week 3+, install later if you want)
-# fastapi==0.115.0
-# uvicorn==0.30.0
-
-# Logging (built into Python, no install needed)
+# Utilities
+python-dateutil

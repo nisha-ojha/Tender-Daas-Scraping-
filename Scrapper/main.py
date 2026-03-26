@@ -26,7 +26,7 @@ from core.alerts import alert_success, alert_error, alert_info
 
 # ── List of all available portals ──
 # Add new portals here as you build them
-AVAILABLE_PORTALS = ["seci"]  # TODO: Add "cppp" when ready
+AVAILABLE_PORTALS = ["seci", "cppp"]  # TODO: Add "cppp" when ready
 
 
 def main():
@@ -46,7 +46,8 @@ def main():
     parser.add_argument(
         "--stage",
         default="all",
-        choices=["all", "scrape", "normalize", "dedup"],
+        choices=["all", "scrape", "normalize", "pdf", "dedup"],
+
         help="Which stage to run (default: all)",
     )
 
