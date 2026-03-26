@@ -35,6 +35,3 @@ storage/raw_snapshots/*.html
 
 # (Optional) Ignore all PDFs if needed
 storage/pdfs/*.pdf
-
-# If you want to ignore ALL html files anywhere
-*.html

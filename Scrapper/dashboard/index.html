@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tender DAAS — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- React -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+<!-- REQUIRED: PropTypes -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+
+<!-- REQUIRED: Recharts dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash/4.17.21/lodash.min.js"></script>
+
+<!-- Recharts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.8.0/Recharts.min.js"></script>
+<style>
+:root {
+  --bg:       #0b0c0e;
+  --surface:  #111214;
+  --surface2: #18191d;
+  --border:   #252629;
+  --border2:  #2e3035;
+  --text:     #e8e9ec;
+  --muted:    #5a5d66;
+  --muted2:   #7a7d88;
+  --accent:   #f97316;
+  --accent2:  #fb923c;
+  --green:    #22c55e;
+  --yellow:   #eab308;
+  --red:      #ef4444;
+  --blue:     #3b82f6;
+  --purple:   #a855f7;
+  --cyan:     #06b6d4;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Syne', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body, #root { height:100%; }
+body { background:var(--bg); color:var(--text); font-family:var(--font-sans); overflow:hidden; }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:var(--surface); }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* Layout */
+.layout { display:flex; height:100vh; }
+.sidebar {
+  width:220px; min-width:220px; background:var(--surface);
+  border-right:1px solid var(--border); display:flex;
+  flex-direction:column; overflow:hidden;
+}
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar {
+  height:52px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 24px;
+  gap:12px; background:var(--surface); flex-shrink:0;
+}
+.content { flex:1; overflow-y:auto; padding:24px; }
+
+/* Sidebar */
+.sidebar-logo {
+  padding:20px 16px 12px;
+  border-bottom:1px solid var(--border);
+}
+.logo-mark {
+  font-family:var(--font-mono); font-size:11px; font-weight:700;
+  color:var(--accent); letter-spacing:2px; text-transform:uppercase;
+}
+.logo-sub { font-size:10px; color:var(--muted); margin-top:2px; font-family:var(--font-mono); }
+.nav { flex:1; overflow-y:auto; padding:8px 0; }
+.nav-section { padding:16px 16px 4px; font-size:9px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-family:var(--font-mono); }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:8px 16px;
+  cursor:pointer; font-size:13px; color:var(--muted2); transition:all .15s;
+  border-left:2px solid transparent; font-family:var(--font-sans); font-weight:600;
+}
+.nav-item:hover { color:var(--text); background:var(--surface2); }
+.nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(249,115,22,.07); }
+.nav-icon { width:16px; text-align:center; font-size:14px; }
+.sidebar-footer {
+  padding:12px 16px; border-top:1px solid var(--border);
+  font-family:var(--font-mono); font-size:10px; color:var(--muted);
+}
+
+/* Topbar */
+.page-title { font-size:15px; font-weight:700; color:var(--text); }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.refresh-time { font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
+/* Buttons */
+.btn {
+  padding:7px 14px; border-radius:6px; border:none; cursor:pointer;
+  font-size:12px; font-weight:700; font-family:var(--font-sans);
+  display:inline-flex; align-items:center; gap:6px; transition:all .15s;
+  letter-spacing:.3px;
+}
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--accent2); }
+.btn-ghost { background:var(--surface2); color:var(--muted2); border:1px solid var(--border); }
+.btn-ghost:hover { color:var(--text); border-color:var(--border2); }
+.btn-danger { background:rgba(239,68,68,.15); color:var(--red); border:1px solid rgba(239,68,68,.3); }
+.btn-danger:hover { background:rgba(239,68,68,.25); }
+.btn-green { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+.btn-green:hover { background:rgba(34,197,94,.25); }
+.btn-sm { padding:4px 10px; font-size:11px; }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Cards & Panels */
+.card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden;
+}
+.card-header {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.card-title { font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1px; color:var(--muted2); font-family:var(--font-mono); }
+.card-body { padding:18px; }
+
+/* KPI Grid */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+.kpi {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:16px; position:relative; overflow:hidden;
+}
+.kpi::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:var(--accent-color, var(--accent));
+}
+.kpi-value { font-family:var(--font-mono); font-size:28px; font-weight:700;
+  color:var(--accent-color, var(--accent)); line-height:1; }
+.kpi-label { font-size:11px; color:var(--muted); margin-top:6px;
+  text-transform:uppercase; letter-spacing:.8px; font-weight:700; }
+.kpi-sub { font-family:var(--font-mono); font-size:10px; color:var(--muted); margin-top:4px; }
+
+/* Tables */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:9px 14px; background:var(--surface2);
+  color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1px; border-bottom:1px solid var(--border); white-space:nowrap;
+  font-family:var(--font-mono); }
+td { padding:9px 14px; border-bottom:1px solid var(--border);
+  color:var(--text); font-size:12px; font-family:var(--font-mono); }
+tr:hover td { background:rgba(255,255,255,.02); }
+tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge {
+  display:inline-flex; align-items:center; padding:2px 8px;
+  border-radius:4px; font-size:10px; font-weight:700;
+  font-family:var(--font-mono); letter-spacing:.5px; text-transform:uppercase;
+}
+.badge-success { background:rgba(34,197,94,.15); color:var(--green); }
+.badge-error   { background:rgba(239,68,68,.15);  color:var(--red); }
+.badge-warning { background:rgba(234,179,8,.15);   color:var(--yellow); }
+.badge-open    { background:rgba(59,130,246,.15);  color:var(--blue); }
+.badge-closed  { background:rgba(90,93,102,.2);    color:var(--muted2); }
+.badge-awarded { background:rgba(168,85,247,.15);  color:var(--purple); }
+.badge-info    { background:rgba(6,182,212,.15);   color:var(--cyan); }
+.badge-running { background:rgba(249,115,22,.15);  color:var(--accent); }
+.badge-killed  { background:rgba(239,68,68,.1);    color:var(--muted2); }
+.badge-pending { background:rgba(234,179,8,.1);    color:var(--yellow); }
+
+/* Grid layout helpers */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.gap-16 { gap:16px; }
+.mb-16 { margin-bottom:16px; }
+.mb-20 { margin-bottom:20px; }
+.flex { display:flex; }
+.flex-col { flex-direction:column; }
+.items-center { align-items:center; }
+.justify-between { justify-content:space-between; }
+.gap-8 { gap:8px; }
+.gap-12 { gap:12px; }
+
+/* Charts */
+.chart-wrap { width:100%; }
+
+/* Loading / Empty */
+.loading { display:flex; align-items:center; justify-content:center;
+  padding:48px; color:var(--muted); font-family:var(--font-mono); font-size:12px; }
+.empty { display:flex; align-items:center; justify-content:center;
+  padding:32px; color:var(--muted); font-size:12px; flex-direction:column; gap:8px; }
+.spin { display:inline-block; width:14px; height:14px; border:2px solid var(--border2);
+  border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Health day grid */
+.day-grid { display:flex; gap:3px; flex-wrap:wrap; }
+.day-cell { width:14px; height:14px; border-radius:2px; }
+.day-success { background:var(--green); }
+.day-error   { background:var(--red); }
+.day-empty   { background:var(--border2); }
+
+/* Progress bar */
+.prog-row { display:flex; align-items:center; gap:12px; padding:6px 0; border-bottom:1px solid var(--border); }
+.prog-label { width:160px; font-size:12px; color:var(--muted2); font-family:var(--font-mono); flex-shrink:0; }
+.prog-bar-bg { flex:1; height:6px; background:var(--border2); border-radius:3px; overflow:hidden; }
+.prog-bar    { height:100%; border-radius:3px; transition:width .5s; }
+.prog-pct    { width:40px; text-align:right; font-family:var(--font-mono); font-size:12px; font-weight:700; }
+
+/* Validation */
+.val-card { border-radius:8px; border:1px solid var(--border); margin-bottom:12px; overflow:hidden; }
+.val-header { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--surface2); cursor:pointer; }
+.val-name { font-weight:700; font-size:13px; flex:1; }
+.val-body { padding:12px 16px; border-top:1px solid var(--border); }
+.val-desc { font-size:12px; color:var(--muted2); margin-bottom:10px; }
+
+/* Log stream */
+.log-box {
+  background:#050506; border:1px solid var(--border); border-radius:6px;
+  padding:12px; font-family:var(--font-mono); font-size:11px;
+  color:#7aff7a; height:200px; overflow-y:auto; line-height:1.8;
+}
+
+/* Diff */
+.diff-added   { background:rgba(34,197,94,.08);  border-left:3px solid var(--green); }
+.diff-removed { background:rgba(239,68,68,.08);   border-left:3px solid var(--red); }
+.diff-changed { background:rgba(234,179,8,.06);   border-left:3px solid var(--yellow); }
+
+/* Alert items */
+.alert-item { display:flex; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); align-items:flex-start; }
+.alert-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+.alert-critical { background:var(--red); box-shadow:0 0 6px var(--red); }
+.alert-warning  { background:var(--yellow); box-shadow:0 0 6px var(--yellow); }
+.alert-info     { background:var(--blue); }
+
+/* Filter row */
+.filter-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.filter-select {
+  background:var(--surface2); border:1px solid var(--border); color:var(--text);
+  padding:6px 10px; border-radius:6px; font-size:12px; font-family:var(--font-mono);
+  cursor:pointer;
+}
+.filter-select:focus { outline:none; border-color:var(--accent); }
+
+/* Section divider */
+.section-gap { height:20px; }
+.page-header { margin-bottom:20px; }
+.page-header h2 { font-size:18px; font-weight:800; color:var(--text); }
+.page-header p  { font-size:12px; color:var(--muted); margin-top:4px; font-family:var(--font-mono); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const { useState, useEffect, useCallback, useRef } = React;
+const {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area,
+} = Recharts;
+
+// ── Config ───────────────────────────────────────────────────
+const PORTALS = ['seci', 'cppp'];
+const COLORS = {
+  accent:'#f97316', green:'#22c55e', yellow:'#eab308',
+  red:'#ef4444', blue:'#3b82f6', purple:'#a855f7', cyan:'#06b6d4',
+  muted:'#5a5d66',
+};
+const CHART_COLORS = ['#f97316','#3b82f6','#22c55e','#a855f7','#06b6d4','#eab308','#ef4444'];
+
+// ── Helpers ───────────────────────────────────────────────────
+const api = async (path) => {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+};
+const post = async (path, body) => {
+  const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const fmt = {
+  inr: (v) => {
+    if (!v && v !== 0) return '—';
+    if (v >= 1e7) return '₹' + (v/1e7).toFixed(2) + ' Cr';
+    if (v >= 1e5) return '₹' + (v/1e5).toFixed(2) + ' L';
+    return '₹' + Number(v).toLocaleString('en-IN');
+  },
+  date: (s) => {
+    if (!s) return '—';
+    return new Date(s).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  },
+  datetime: (s) => {
+    if (!s) return '—';
+    return new Date(s).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  },
+  dur: (s) => {
+    if (!s) return '—';
+    if (s < 60) return s + 's';
+    return Math.floor(s/60) + 'm ' + (s%60) + 's';
+  },
+  trunc: (s, n=50) => s && s.length > n ? s.slice(0,n)+'…' : (s||'—'),
+};
+
+// ── Badge ─────────────────────────────────────────────────────
+function Badge({v}) {
+  const map = {
+    success:'badge-success', error:'badge-error', warning:'badge-warning',
+    open:'badge-open', closed:'badge-closed', awarded:'badge-awarded',
+    running:'badge-running', killed:'badge-killed', pending:'badge-pending',
+    critical:'badge-error', info:'badge-info',
+  };
+  return React.createElement('span',{className:'badge '+(map[v]||'badge-info')},v);
+}
+
+// ── KPI Card ─────────────────────────────────────────────────
+function KPI({label, value, sub, color}) {
+  return React.createElement('div',{className:'kpi', style:{'--accent-color':color||COLORS.accent}},
+    React.createElement('div',{className:'kpi-value'},value??'—'),
+    React.createElement('div',{className:'kpi-label'},label),
+    sub && React.createElement('div',{className:'kpi-sub'},sub),
+  );
+}
+
+// ── Loading ───────────────────────────────────────────────────
+function Loading() {
+  return React.createElement('div',{className:'loading'},
+    React.createElement('span',{className:'spin'}),
+    React.createElement('span',{style:{marginLeft:8}},'Loading...')
+  );
+}
+
+// ── Tooltip ──────────────────────────────────────────────────
+const ChartTooltip = ({active,payload,label}) => {
+  if (!active || !payload?.length) return null;
+  return React.createElement('div',{style:{
+    background:'#18191d', border:'1px solid #252629', borderRadius:6,
+    padding:'8px 12px', fontSize:11, fontFamily:'JetBrains Mono,monospace',
+  }},
+    React.createElement('div',{style:{color:'#7a7d88',marginBottom:4}},label),
+    payload.map((p,i) => React.createElement('div',{key:i,style:{color:p.color}},
+      `${p.name}: ${p.value}`
+    ))
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// VIEWS
+// ══════════════════════════════════════════════════════════════
+
+// ── 1. Overview ───────────────────────────────────────────────
+function ViewOverview() {
+  const [data, setData] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  useEffect(() => {
+    api('/api/stats').then(setData).catch(()=>{});
+    api('/api/analytics').then(setAnalytics).catch(()=>{});
+  }, []);
+
+  if (!data) return React.createElement(Loading);
+
+  const kpis = [
+    {label:'Total Tenders', value: data.total_tenders, color: COLORS.accent},
+    {label:'Live / Open',   value: data.by_status.find(s=>s.status==='open')?.count||0, color:COLORS.green},
+    {label:'Archived',      value: data.by_status.find(s=>s.status==='closed')?.count||0, color:COLORS.yellow},
+    {label:'Awarded',       value: data.by_status.find(s=>s.status==='awarded')?.count||0, color:COLORS.purple},
+    {label:'Added 24h',     value: data.added_24h, color: COLORS.cyan},
+    {label:'Added 7d',      value: data.added_7d, color: COLORS.blue},
+    {label:'With EMD',      value: data.with_emd, color: COLORS.green},
+    {label:'Total Docs',    value: data.total_document_urls, color: COLORS.muted},
+    {label:'Successful Runs', value: data.success_runs, color: COLORS.green},
+    {label:'Failed Runs',   value: data.failed_runs, color: COLORS.red},
+  ];
+
+  const dailyData = analytics?.daily_new?.map(d => ({
+    day: new Date(d.day).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),
+    count: d.cnt,
+  })) || [];
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Overview'),
+      React.createElement('p',null,'System-wide summary across all portals')
+    ),
+    React.createElement('div',{className:'kpi-grid'},
+      kpis.map((k,i) => React.createElement(KPI,{key:i,...k}))
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      // Category breakdown
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},
+          React.createElement('span',{className:'card-title'},'Tenders by Category')
+        ),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:240},
+            React.createElement(BarChart,{data:data.by_category,layout:'vertical',margin:{left:20}},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{type:'number',tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(YAxis,{type:'category',dataKey:'category',tick:{fill:'#7a7d88',fontSize:10},width:120,stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'count',fill:COLORS.accent,radius:[0,3,3,0]})
+            )
+          )
+        )
+      ),
+      // Daily new tenders
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},
+          React.createElement('span',{className:'card-title'},'New Tenders — Last 30 Days')
+        ),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:240},
+            React.createElement(AreaChart,{data:dailyData},
+              React.createElement('defs',null,
+                React.createElement('linearGradient',{id:'areaGrad',x1:'0',y1:'0',x2:'0',y2:'1'},
+                  React.createElement('stop',{offset:'5%',stopColor:COLORS.accent,stopOpacity:.25}),
+                  React.createElement('stop',{offset:'95%',stopColor:COLORS.accent,stopOpacity:.02})
+                )
+              ),
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'day',tick:{fill:'#5a5d66',fontSize:9},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Area,{type:'monotone',dataKey:'count',stroke:COLORS.accent,fill:'url(#areaGrad)',strokeWidth:2})
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 2. Run History ────────────────────────────────────────────
+function ViewRunHistory() {
+  const [runs, setRuns] = useState(null);
+  const [filterPortal, setFilterPortal] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const load = () => {
+    let url = '/api/runs?limit=100';
+    if (filterPortal) url += `&portal=${filterPortal}`;
+    if (filterStatus) url += `&status=${filterStatus}`;
+    api(url).then(d => setRuns(d.runs)).catch(()=>{});
+  };
+  useEffect(load, [filterPortal, filterStatus]);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Run History'),
+      React.createElement('p',null,'All scraper pipeline executions')
+    ),
+    React.createElement('div',{className:'filter-row'},
+      React.createElement('select',{className:'filter-select',value:filterPortal,onChange:e=>setFilterPortal(e.target.value)},
+        React.createElement('option',{value:''},'All Portals'),
+        PORTALS.map(p => React.createElement('option',{key:p,value:p},p.toUpperCase()))
+      ),
+      React.createElement('select',{className:'filter-select',value:filterStatus,onChange:e=>setFilterStatus(e.target.value)},
+        React.createElement('option',{value:''},'All Statuses'),
+        ['success','error','running'].map(s => React.createElement('option',{key:s,value:s},s))
+      ),
+      React.createElement('button',{className:'btn btn-ghost btn-sm',onClick:load},'↻ Refresh')
+    ),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'tbl-wrap'},
+        !runs ? React.createElement(Loading) :
+        React.createElement('table',null,
+          React.createElement('thead',null, React.createElement('tr',null,
+            ['Portal','Status','Found','New','Updated','Duration','Started','Trigger','Error'].map(h =>
+              React.createElement('th',{key:h},h)
+            )
+          )),
+          React.createElement('tbody',null,
+            runs.map(r => React.createElement('tr',{key:r.id},
+              React.createElement('td',null, React.createElement('span',{className:'badge badge-info'},r.portal?.toUpperCase())),
+              React.createElement('td',null, React.createElement(Badge,{v:r.status})),
+              React.createElement('td',null, r.records_found||0),
+              React.createElement('td',null, React.createElement('span',{style:{color:COLORS.green,fontWeight:700}},r.records_new||0)),
+              React.createElement('td',null, r.records_updated||0),
+              React.createElement('td',null, fmt.dur(r.duration_sec)),
+              React.createElement('td',null, fmt.datetime(r.started_at)),
+              React.createElement('td',null, r.batch_id?.includes('manual') ?
+                React.createElement('span',{className:'badge badge-warning'},'MANUAL') :
+                React.createElement('span',{className:'badge badge-closed'},'SCHED')
+              ),
+              React.createElement('td',{style:{maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:COLORS.red},title:r.error||''},
+                r.error ? fmt.trunc(r.error,60) : '—'
+              )
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 3. Portal Health ──────────────────────────────────────────
+function ViewPortalHealth() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/health').then(setData).catch(()=>{}); }, []);
+
+  if (!data) return React.createElement(Loading);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Portal Health'),
+      React.createElement('p',null,'30-day uptime and run status per portal')
+    ),
+    Object.entries(data).map(([portal, info]) => {
+      const last30 = [];
+      const today = new Date();
+      for (let i=29; i>=0; i--) {
+        const d = new Date(today); d.setDate(d.getDate()-i);
+        const key = d.toISOString().split('T')[0];
+        last30.push({key, status: info.day_grid[key]||null});
+      }
+
+      return React.createElement('div',{key:portal,className:'card mb-16'},
+        React.createElement('div',{className:'card-header'},
+          React.createElement('div',{className:'flex items-center gap-8'},
+            React.createElement('span',{className:'card-title'},portal.toUpperCase()),
+            React.createElement(Badge,{v:info.uptime_pct>=90?'success':info.uptime_pct>=70?'warning':'error'}),
+          ),
+          React.createElement('div',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--muted)'}},
+            `Last success: ${fmt.datetime(info.last_success)}`
+          )
+        ),
+        React.createElement('div',{className:'card-body'},
+          React.createElement('div',{className:'grid-3'},
+            React.createElement(KPI,{label:'Uptime 30d', value:info.uptime_pct+'%',
+              color: info.uptime_pct>=90?COLORS.green:info.uptime_pct>=70?COLORS.yellow:COLORS.red}),
+            React.createElement(KPI,{label:'Total Runs', value:info.total_runs, color:COLORS.blue}),
+            React.createElement(KPI,{label:'Success Runs', value:info.success_runs, color:COLORS.green}),
+          ),
+          React.createElement('div',{style:{marginTop:16}},
+            React.createElement('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:8,fontFamily:'var(--font-mono)'}},
+              'Daily status (last 30 days) — green=success  red=error  gray=no run'
+            ),
+            React.createElement('div',{className:'day-grid'},
+              last30.map(d => React.createElement('div',{
+                key:d.key, className:'day-cell '+(d.status==='success'?'day-success':d.status==='error'?'day-error':'day-empty'),
+                title:d.key+': '+(d.status||'no run'),
+              }))
+            )
+          )
+        )
+      );
+    })
+  );
+}
+
+// ── 4. Response Times ─────────────────────────────────────────
+function ViewResponseTimes() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/response-times').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  const avgData = Object.entries(data.averages).map(([portal, avg]) => ({portal:portal.toUpperCase(), avg}));
+
+  const allRuns = Object.entries(data.by_portal).flatMap(([portal, runs]) =>
+    runs.map((r,i) => ({...r, portal, idx:i}))
+  ).slice(-40);
+
+  const lineData = [];
+  const portalKeys = Object.keys(data.by_portal);
+  const maxLen = Math.max(...portalKeys.map(p => data.by_portal[p].length));
+  for (let i=0; i<Math.min(maxLen,20); i++) {
+    const pt = {run: i+1};
+    portalKeys.forEach(p => {
+      const runs = data.by_portal[p];
+      if (runs[runs.length-20+i]) pt[p] = runs[runs.length-20+i].duration_sec;
+    });
+    lineData.push(pt);
+  }
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Response Times'),
+      React.createElement('p',null,'Scrape duration per run and portal averages')
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Duration — Last 20 Runs')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:240},
+            React.createElement(LineChart,{data:lineData},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'run',tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629',unit:'s'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Legend,{wrapperStyle:{fontSize:11}}),
+              portalKeys.map((p,i) => React.createElement(Line,{key:p,type:'monotone',dataKey:p,stroke:CHART_COLORS[i],strokeWidth:2,dot:{r:3}}))
+            )
+          )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Average Duration per Portal')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:240},
+            React.createElement(BarChart,{data:avgData},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'portal',tick:{fill:'#7a7d88',fontSize:11},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629',unit:'s'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'avg',fill:COLORS.cyan,radius:[3,3,0,0]})
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 5. DB Records ─────────────────────────────────────────────
+function ViewDBRecords() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/db-stats').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  const growthData = [...data.growth].reverse().map((r,i) => ({
+    idx: i+1, portal:r.portal?.toUpperCase(), new_records: r.records_new||0
+  }));
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'DB Records Tracker'),
+      React.createElement('p',null,'Record counts and growth per portal')
+    ),
+    React.createElement('div',{className:'kpi-grid mb-20'},
+      data.totals.map((t,i) => React.createElement(KPI,{key:i,
+        label:t.source_portal?.toUpperCase()+' Tenders',
+        value:t.total, color:CHART_COLORS[i]
+      }))
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Records Added per Run (Last 20)')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:240},
+            React.createElement(BarChart,{data:growthData},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'idx',tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'new_records',fill:COLORS.green,radius:[3,3,0,0]})
+            )
+          )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Raw Records per Portal')),
+        React.createElement('div',{className:'tbl-wrap'},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,
+              ['Portal','Total Raw','Processed','Errors'].map(h=>React.createElement('th',{key:h},h))
+            )),
+            React.createElement('tbody',null,
+              data.raw_stats.map((r,i) => React.createElement('tr',{key:i},
+                React.createElement('td',null,r.portal?.toUpperCase()),
+                React.createElement('td',null,r.total),
+                React.createElement('td',null,React.createElement('span',{style:{color:COLORS.green}},r.processed)),
+                React.createElement('td',null,React.createElement('span',{style:{color:r.errors>0?COLORS.red:COLORS.muted}},r.errors))
+              ))
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 6. Run Diff ───────────────────────────────────────────────
+function ViewRunDiff() {
+  const [runs, setRuns] = useState([]);
+  const [run1, setRun1] = useState('');
+  const [run2, setRun2] = useState('');
+  const [diff, setDiff] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    api('/api/runs?limit=30').then(d => setRuns(d.runs||[])).catch(()=>{});
+  }, []);
+
+  const compare = async () => {
+    if (!run1||!run2) { setErr('Select both runs'); return; }
+    if (run1===run2)  { setErr('Select two different runs'); return; }
+    setErr(''); setLoading(true);
+    try {
+      const d = await api(`/api/diff?run1=${run1}&run2=${run2}`);
+      setDiff(d);
+    } catch(e) { setErr('Could not load diff: '+e.message); }
+    finally { setLoading(false); }
+  };
+
+  const runOpts = runs.map(r => React.createElement('option',{key:r.batch_id,value:r.batch_id},
+    `${r.portal?.toUpperCase()} — ${fmt.datetime(r.started_at)} (${r.status})`
+  ));
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Run Diff Viewer'),
+      React.createElement('p',null,'Compare two pipeline runs to see what changed')
+    ),
+    React.createElement('div',{className:'card mb-16'},
+      React.createElement('div',{className:'card-body'},
+        React.createElement('div',{className:'grid-2',style:{gap:12,marginBottom:12}},
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:6,fontFamily:'var(--font-mono)'}}, 'RUN 1 (before)'),
+            React.createElement('select',{className:'filter-select',value:run1,onChange:e=>setRun1(e.target.value),style:{width:'100%'}},
+              React.createElement('option',{value:''},'Select run…'),
+              ...runOpts
+            )
+          ),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:6,fontFamily:'var(--font-mono)'}}, 'RUN 2 (after)'),
+            React.createElement('select',{className:'filter-select',value:run2,onChange:e=>setRun2(e.target.value),style:{width:'100%'}},
+              React.createElement('option',{value:''},'Select run…'),
+              ...runOpts
+            )
+          )
+        ),
+        React.createElement('div',{className:'flex gap-8 items-center'},
+          React.createElement('button',{className:'btn btn-primary',onClick:compare,disabled:loading},
+            loading ? React.createElement('span',{className:'spin'}) : '⇄', ' Compare'
+          ),
+          err && React.createElement('span',{style:{color:COLORS.red,fontSize:12,fontFamily:'var(--font-mono)'}},err)
+        )
+      )
+    ),
+    diff && React.createElement('div',null,
+      React.createElement('div',{className:'kpi-grid mb-16'},
+        React.createElement(KPI,{label:'Added',   value:diff.summary.added_count,   color:COLORS.green}),
+        React.createElement(KPI,{label:'Removed',  value:diff.summary.removed_count,  color:COLORS.red}),
+        React.createElement(KPI,{label:'Changed',  value:diff.summary.changed_count,  color:COLORS.yellow}),
+      ),
+      diff.added.length > 0 && React.createElement('div',{className:'card mb-16'},
+        React.createElement('div',{className:'card-header'},
+          React.createElement('span',{className:'card-title'},`✚ Added (${diff.added.length})`)
+        ),
+        React.createElement('div',{className:'tbl-wrap'},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,
+              ['Ref','Title','Category','Status'].map(h=>React.createElement('th',{key:h},h))
+            )),
+            React.createElement('tbody',null,
+              diff.added.map((t,i) => React.createElement('tr',{key:i,className:'diff-added'},
+                React.createElement('td',null,t.reference_number||'—'),
+                React.createElement('td',null,fmt.trunc(t.title,50)),
+                React.createElement('td',null,t.category||'—'),
+                React.createElement('td',null,React.createElement(Badge,{v:t.status}))
+              ))
+            )
+          )
+        )
+      ),
+      diff.changed.length > 0 && React.createElement('div',{className:'card mb-16'},
+        React.createElement('div',{className:'card-header'},
+          React.createElement('span',{className:'card-title'},`⟳ Changed (${diff.changed.length})`)
+        ),
+        React.createElement('div',{className:'card-body'},
+          diff.changed.map((c,i) => React.createElement('div',{key:i,className:'diff-changed',style:{padding:'10px 12px',marginBottom:8,borderRadius:6}},
+            React.createElement('div',{style:{fontWeight:700,marginBottom:6,fontSize:12}},c.reference_number,' — ',fmt.trunc(c.title,60)),
+            Object.entries(c.changes).map(([field,chg]) =>
+              React.createElement('div',{key:field,style:{fontSize:11,fontFamily:'var(--font-mono)',color:'var(--muted2)'}},
+                React.createElement('span',{style:{color:COLORS.yellow}},field),': ',
+                React.createElement('span',{style:{color:COLORS.red}},chg.before),
+                ' → ',
+                React.createElement('span',{style:{color:COLORS.green}},chg.after)
+              )
+            )
+          ))
+        )
+      )
+    )
+  );
+}
+
+// ── 7. Jobs Monitor + Manual Trigger ─────────────────────────
+function ViewJobs() {
+  const [jobs, setJobs] = useState({active_jobs:[],running_in_db:[]});
+  const [logs, setLogs] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [triggering, setTriggering] = useState(false);
+
+  const loadJobs = () => api('/api/jobs').then(setJobs).catch(()=>{});
+  useEffect(() => {
+    loadJobs();
+    const t = setInterval(loadJobs, 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    const t = setInterval(() => {
+      api(`/api/job-logs/${selectedJob}`).then(setLogs).catch(()=>{});
+    }, 1500);
+    api(`/api/job-logs/${selectedJob}`).then(setLogs).catch(()=>{});
+    return () => clearInterval(t);
+  }, [selectedJob]);
+
+  const trigger = async (portal) => {
+    setTriggering(true);
+    try {
+      const r = await post(`/api/trigger/${portal}`);
+      setSelectedJob(r.job_id);
+      loadJobs();
+    } catch(e) {
+      alert('Failed: ' + e.message);
+    } finally { setTriggering(false); }
+  };
+
+  const kill = async (jobId) => {
+    if (!confirm('Kill this job?')) return;
+    await post(`/api/kill/${jobId}`);
+    loadJobs();
+  };
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Jobs Monitor & Manual Trigger'),
+      React.createElement('p',null,'Run scrapers manually and monitor active jobs')
+    ),
+    // Manual trigger buttons
+    React.createElement('div',{className:'card mb-16'},
+      React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Manual Trigger')),
+      React.createElement('div',{className:'card-body'},
+        React.createElement('div',{className:'flex gap-8'},
+          PORTALS.map(p => React.createElement('button',{
+            key:p, className:'btn btn-primary', disabled:triggering,
+            onClick:()=>trigger(p),
+          }, '▶ Run '+p.toUpperCase()))
+        ),
+        React.createElement('p',{style:{fontSize:11,color:'var(--muted)',marginTop:10,fontFamily:'var(--font-mono)'}},
+          'Jobs run in background. Watch the log stream below.'
+        )
+      )
+    ),
+    // Active jobs
+    React.createElement('div',{className:'card mb-16'},
+      React.createElement('div',{className:'card-header'},
+        React.createElement('span',{className:'card-title'},'Active Jobs'),
+        React.createElement('button',{className:'btn btn-ghost btn-sm',onClick:loadJobs},'↻')
+      ),
+      jobs.active_jobs.length === 0
+        ? React.createElement('div',{className:'empty'},'No active jobs')
+        : React.createElement('div',{className:'tbl-wrap'},
+            React.createElement('table',null,
+              React.createElement('thead',null,React.createElement('tr',null,
+                ['Job ID','Portal','Status','Started','Actions'].map(h=>React.createElement('th',{key:h},h))
+              )),
+              React.createElement('tbody',null,
+                jobs.active_jobs.map(j => React.createElement('tr',{key:j.job_id},
+                  React.createElement('td',null,
+                    React.createElement('span',{style:{cursor:'pointer',color:COLORS.cyan,textDecoration:'underline'},
+                      onClick:()=>setSelectedJob(j.job_id)},j.job_id)
+                  ),
+                  React.createElement('td',null,j.portal?.toUpperCase()),
+                  React.createElement('td',null,React.createElement(Badge,{v:j.status})),
+                  React.createElement('td',null,fmt.datetime(j.started)),
+                  React.createElement('td',null,
+                    j.status==='running' && React.createElement('button',{
+                      className:'btn btn-danger btn-sm',onClick:()=>kill(j.job_id)
+                    },'⬛ Kill')
+                  )
+                ))
+              )
+            )
+          )
+    ),
+    // Log stream
+    selectedJob && logs && React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},
+        React.createElement('span',{className:'card-title'},'Live Logs — '+selectedJob),
+        React.createElement(Badge,{v:logs.status})
+      ),
+      React.createElement('div',{className:'card-body'},
+        React.createElement('div',{className:'log-box'},
+          (logs.logs||[]).map((line,i) => React.createElement('div',{key:i},line))
+        )
+      )
+    )
+  );
+}
+
+// ── 8. Alerts ────────────────────────────────────────────────
+function ViewAlerts() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/alerts').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Alerts'),
+      React.createElement('p',null,'System warnings and failures')
+    ),
+    React.createElement('div',{className:'kpi-grid mb-20'},
+      React.createElement(KPI,{label:'Total Alerts', value:data.count, color:data.count>0?COLORS.red:COLORS.green}),
+      React.createElement(KPI,{label:'Critical', value:data.alerts.filter(a=>a.severity==='critical').length, color:COLORS.red}),
+      React.createElement(KPI,{label:'Warnings', value:data.alerts.filter(a=>a.severity==='warning').length, color:COLORS.yellow}),
+    ),
+    React.createElement('div',{className:'card'},
+      data.alerts.length === 0
+        ? React.createElement('div',{className:'empty',style:{padding:40,color:COLORS.green}},'✓ No alerts — all systems healthy')
+        : data.alerts.map((a,i) => React.createElement('div',{key:i,className:'alert-item'},
+            React.createElement('div',{className:'alert-dot alert-'+(a.severity)},),
+            React.createElement('div',{style:{flex:1}},
+              React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:4}},
+                React.createElement(Badge,{v:a.severity}),
+                React.createElement('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--muted)'}},a.type),
+                React.createElement('span',{className:'badge badge-info'},a.portal?.toUpperCase()),
+                React.createElement('span',{style:{marginLeft:'auto',fontFamily:'var(--font-mono)',fontSize:10,color:'var(--muted)'}},fmt.datetime(a.time))
+              ),
+              React.createElement('div',{style:{fontSize:12,color:'var(--text)'}},a.message)
+            )
+          ))
+    )
+  );
+}
+
+// ── 9. Error Intelligence ─────────────────────────────────────
+function ViewErrors() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/errors').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Error Intelligence'),
+      React.createElement('p',null,'Categorised error breakdown and trends')
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Error Categories')),
+        React.createElement('div',{className:'card-body'},
+          data.categories.length === 0
+            ? React.createElement('div',{className:'empty'},'No errors found')
+            : React.createElement(ResponsiveContainer,{width:'100%',height:220},
+                React.createElement(PieChart,null,
+                  React.createElement(Pie,{data:data.categories,dataKey:'count',nameKey:'name',cx:'50%',cy:'50%',outerRadius:80,label:({name,count})=>`${name}: ${count}`},
+                    data.categories.map((_,i) => React.createElement(Cell,{key:i,fill:CHART_COLORS[i]}))
+                  ),
+                  React.createElement(Tooltip)
+                )
+              )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Recent Run Errors')),
+        React.createElement('div',{className:'tbl-wrap'},
+          React.createElement('table',null,
+            React.createElement('thead',null,React.createElement('tr',null,
+              ['Portal','Error','Time'].map(h=>React.createElement('th',{key:h},h))
+            )),
+            React.createElement('tbody',null,
+              data.run_errors.length === 0
+                ? React.createElement('tr',null,React.createElement('td',{colSpan:3,style:{textAlign:'center',color:'var(--muted)'}},'No run errors'))
+                : data.run_errors.map((e,i) => React.createElement('tr',{key:i},
+                    React.createElement('td',null,React.createElement('span',{className:'badge badge-info'},e.portal?.toUpperCase())),
+                    React.createElement('td',{style:{color:COLORS.red,maxWidth:280,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},title:e.error_message||''},
+                      fmt.trunc(e.error_message,70)
+                    ),
+                    React.createElement('td',null,fmt.datetime(e.started_at))
+                  ))
+            )
+          )
+        )
+      )
+    ),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Raw Record Errors (latest 50)')),
+      React.createElement('div',{className:'tbl-wrap'},
+        React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,
+            ['Portal','Category','Error','Time'].map(h=>React.createElement('th',{key:h},h))
+          )),
+          React.createElement('tbody',null,
+            data.detailed.length === 0
+              ? React.createElement('tr',null,React.createElement('td',{colSpan:4,style:{textAlign:'center',color:'var(--muted)'}},'No errors'))
+              : data.detailed.map((e,i) => React.createElement('tr',{key:i},
+                  React.createElement('td',null,e.portal?.toUpperCase()),
+                  React.createElement('td',null,React.createElement(Badge,{v:'warning'}),React.createElement('span',{style:{marginLeft:6}},e.category)),
+                  React.createElement('td',{style:{color:COLORS.red,maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},fmt.trunc(e.message,80)),
+                  React.createElement('td',null,fmt.datetime(e.time))
+                ))
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 10. Tender Analytics ──────────────────────────────────────
+function ViewAnalytics() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/analytics').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  const statusData = data.by_status.map(s=>({name:s.status, value:s.cnt}));
+  const catData = data.by_category.map(c=>({name:c.category, count:c.cnt}));
+  const stateData = data.by_state.map(s=>({name:s.state, count:s.cnt})).slice(0,10);
+  const dailyData = data.daily_new.map(d=>({
+    day: new Date(d.day).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}), count:d.cnt
+  }));
+  const exp = data.expiring;
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Tender Analytics'),
+      React.createElement('p',null,'Deep insights into tender data')
+    ),
+    React.createElement('div',{className:'kpi-grid mb-20'},
+      React.createElement(KPI,{label:'Expiring in 3d', value:exp.in_3_days||0, color:COLORS.red}),
+      React.createElement(KPI,{label:'Expiring in 7d', value:exp.in_7_days||0, color:COLORS.yellow}),
+      React.createElement(KPI,{label:'Expiring in 30d', value:exp.in_30_days||0, color:COLORS.blue}),
+      React.createElement(KPI,{label:'Expired (open)', value:exp.expired||0, color:COLORS.muted}),
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Status Breakdown')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:220},
+            React.createElement(PieChart,null,
+              React.createElement(Pie,{data:statusData,dataKey:'value',nameKey:'name',cx:'50%',cy:'50%',outerRadius:80,label:({name,value})=>`${name}: ${value}`},
+                statusData.map((_,i) => React.createElement(Cell,{key:i,fill:CHART_COLORS[i]}))
+              ),
+              React.createElement(Tooltip)
+            )
+          )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'New Tenders per Day')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:220},
+            React.createElement(AreaChart,{data:dailyData},
+              React.createElement('defs',null,
+                React.createElement('linearGradient',{id:'g2',x1:'0',y1:'0',x2:'0',y2:'1'},
+                  React.createElement('stop',{offset:'5%',stopColor:COLORS.blue,stopOpacity:.3}),
+                  React.createElement('stop',{offset:'95%',stopColor:COLORS.blue,stopOpacity:.02})
+                )
+              ),
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'day',tick:{fill:'#5a5d66',fontSize:9},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Area,{type:'monotone',dataKey:'count',stroke:COLORS.blue,fill:'url(#g2)',strokeWidth:2})
+            )
+          )
+        )
+      )
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'By Category')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:260},
+            React.createElement(BarChart,{data:catData,layout:'vertical'},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{type:'number',tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(YAxis,{type:'category',dataKey:'name',tick:{fill:'#7a7d88',fontSize:10},width:130,stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'count',fill:COLORS.accent,radius:[0,3,3,0]})
+            )
+          )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'By State')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:260},
+            React.createElement(BarChart,{data:stateData,layout:'vertical'},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{type:'number',tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(YAxis,{type:'category',dataKey:'name',tick:{fill:'#7a7d88',fontSize:10},width:110,stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'count',fill:COLORS.purple,radius:[0,3,3,0]})
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 11. Data Quality + Validation ────────────────────────────
+function ViewQuality() {
+  const [quality, setQuality] = useState(null);
+  const [validation, setValidation] = useState(null);
+  const [validating, setValidating] = useState(false);
+  const [expanded, setExpanded] = useState({});
+
+  useEffect(() => { api('/api/quality').then(setQuality).catch(()=>{}); }, []);
+
+  const runValidation = async () => {
+    setValidating(true);
+    try {
+      const d = await api('/api/validate');
+      setValidation(d);
+    } catch(e) { console.error(e); }
+    finally { setValidating(false); }
+  };
+
+  const toggle = (id) => setExpanded(e => ({...e,[id]:!e[id]}));
+
+  const sevColor = {critical:COLORS.red, warning:COLORS.yellow, info:COLORS.cyan};
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Data Quality & Validation'),
+      React.createElement('p',null,'Field completeness and automated data integrity checks')
+    ),
+    // Quality scores
+    quality && React.createElement('div',null,
+      React.createElement('div',{className:'kpi-grid mb-20'},
+        React.createElement(KPI,{label:'Overall Quality Score', value:quality.score+'%',
+          color: quality.score>=80?COLORS.green:quality.score>=60?COLORS.yellow:COLORS.red}),
+        React.createElement(KPI,{label:'Total Tenders Analyzed', value:quality.total, color:COLORS.blue}),
+      ),
+      React.createElement('div',{className:'card mb-20'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Field Completeness')),
+        React.createElement('div',{className:'card-body'},
+          Object.entries(quality.checks).map(([label,v]) => {
+            const color = v.pct>=80?COLORS.green:v.pct>=50?COLORS.yellow:COLORS.red;
+            return React.createElement('div',{key:label,className:'prog-row'},
+              React.createElement('div',{className:'prog-label'},label),
+              React.createElement('div',{className:'prog-bar-bg'},
+                React.createElement('div',{className:'prog-bar',style:{width:v.pct+'%',background:color}})
+              ),
+              React.createElement('div',{className:'prog-pct',style:{color}},v.pct+'%')
+            );
+          })
+        )
+      )
+    ),
+    // Validation panel
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},
+        React.createElement('span',{className:'card-title'},'Automated Validation Checks'),
+        React.createElement('div',{className:'flex gap-8 items-center'},
+          validation && React.createElement('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--muted)'}},
+            `${validation.summary.passed}/${validation.summary.total} passed (${validation.summary.score}%)`
+          ),
+          React.createElement('button',{
+            className:'btn btn-primary btn-sm', onClick:runValidation, disabled:validating
+          }, validating ? React.createElement('span',{className:'spin'}) : '▶', ' Run All Checks')
+        )
+      ),
+      !validation
+        ? React.createElement('div',{className:'empty',style:{padding:32}},
+            React.createElement('p',{style:{color:'var(--muted)',fontSize:12,fontFamily:'var(--font-mono)'}},
+              'Click "Run All Checks" to validate your data'
+            )
+          )
+        : React.createElement('div',{className:'card-body'},
+            validation.results.map(r => {
+              const isOpen = expanded[r.id];
+              const icon = r.passed ? '✓' : (r.expect_empty ? '✗' : '⚠');
+              const iconColor = r.passed ? COLORS.green : (r.expect_empty ? COLORS.red : COLORS.yellow);
+              return React.createElement('div',{key:r.id, className:'val-card'},
+                React.createElement('div',{className:'val-header',onClick:()=>toggle(r.id)},
+                  React.createElement('span',{style:{fontFamily:'var(--font-mono)',fontSize:16,color:iconColor}},icon),
+                  React.createElement('span',{className:'val-name'},r.name),
+                  React.createElement(Badge,{v:r.severity}),
+                  React.createElement('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--muted)'}},
+                    r.row_count + ' row' + (r.row_count!==1?'s':'')
+                  ),
+                  React.createElement('span',{style:{color:'var(--muted)',fontSize:12,marginLeft:'auto'}},isOpen?'▲':'▼')
+                ),
+                isOpen && React.createElement('div',{className:'val-body'},
+                  React.createElement('p',{className:'val-desc'},r.description),
+                  r.error && React.createElement('p',{style:{color:COLORS.red,fontFamily:'var(--font-mono)',fontSize:11,marginBottom:8}},'SQL Error: '+r.error),
+                  r.data.length > 0 && React.createElement('div',{className:'tbl-wrap'},
+                    React.createElement('table',null,
+                      React.createElement('thead',null,React.createElement('tr',null,
+                        Object.keys(r.data[0]).map(k=>React.createElement('th',{key:k},k))
+                      )),
+                      React.createElement('tbody',null,
+                        r.data.map((row,ri) => React.createElement('tr',{key:ri},
+                          Object.values(row).map((val,ci) => React.createElement('td',{key:ci},
+                            val===null?React.createElement('span',{style:{color:'var(--muted)'}},
+                              'NULL'):String(val).slice(0,80)
+                          ))
+                        ))
+                      )
+                    )
+                  )
+                )
+              );
+            })
+          )
+    )
+  );
+}
+
+// ── 12. Performance Metrics ───────────────────────────────────
+function ViewPerformance() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/performance').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  const recent = data.metrics.slice(0,20).reverse();
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Performance Metrics'),
+      React.createElement('p',null,'Efficiency, throughput and duration analysis')
+    ),
+    React.createElement('div',{className:'kpi-grid mb-20'},
+      Object.entries(data.aggregates).map(([portal,agg],i) => [
+        React.createElement(KPI,{key:portal+'_dur',label:portal.toUpperCase()+' Avg Duration',value:fmt.dur(agg.avg_duration),color:CHART_COLORS[i]}),
+        React.createElement(KPI,{key:portal+'_rec',label:portal.toUpperCase()+' Avg Records',value:agg.avg_records,color:CHART_COLORS[i]}),
+      ]).flat()
+    ),
+    React.createElement('div',{className:'grid-2 mb-20'},
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Records Found per Run')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:220},
+            React.createElement(BarChart,{data:recent},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'portal',tick:{fill:'#5a5d66',fontSize:9},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Bar,{dataKey:'records_found',name:'Found',fill:COLORS.blue,radius:[3,3,0,0]}),
+              React.createElement(Bar,{dataKey:'records_new',name:'New',fill:COLORS.green,radius:[3,3,0,0]})
+            )
+          )
+        )
+      ),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},React.createElement('span',{className:'card-title'},'Efficiency (records/min)')),
+        React.createElement('div',{className:'card-body'},
+          React.createElement(ResponsiveContainer,{width:'100%',height:220},
+            React.createElement(LineChart,{data:recent},
+              React.createElement(CartesianGrid,{strokeDasharray:'3 3',stroke:'#252629'}),
+              React.createElement(XAxis,{dataKey:'portal',tick:{fill:'#5a5d66',fontSize:9},stroke:'#252629'}),
+              React.createElement(YAxis,{tick:{fill:'#5a5d66',fontSize:10},stroke:'#252629'}),
+              React.createElement(Tooltip,{content:React.createElement(ChartTooltip)}),
+              React.createElement(Line,{type:'monotone',dataKey:'efficiency',stroke:COLORS.accent,strokeWidth:2,dot:{r:3}})
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 13. Data Freshness ────────────────────────────────────────
+function ViewFreshness() {
+  const [data, setData] = useState(null);
+  useEffect(() => { api('/api/freshness').then(setData).catch(()=>{}); }, []);
+  if (!data) return React.createElement(Loading);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Data Freshness'),
+      React.createElement('p',null,'Last scrape time and staleness status per portal')
+    ),
+    React.createElement('div',{className:'grid-2'},
+      Object.entries(data).map(([portal, info]) =>
+        React.createElement('div',{key:portal,className:'card'},
+          React.createElement('div',{className:'card-header'},
+            React.createElement('span',{className:'card-title'},portal.toUpperCase()),
+            React.createElement(Badge,{v:info.is_stale?'warning':'success'})
+          ),
+          React.createElement('div',{className:'card-body'},
+            React.createElement('div',{className:'kpi-grid'},
+              React.createElement(KPI,{label:'Hours Since Scrape',
+                value: info.age_hours != null ? info.age_hours+'h' : 'Never',
+                color: !info.age_hours ? COLORS.muted : info.age_hours>25 ? COLORS.red : COLORS.green
+              }),
+              React.createElement(KPI,{label:'New Records (last run)', value:info.records_new||0, color:COLORS.blue}),
+            ),
+            React.createElement('div',{style:{fontSize:11,color:'var(--muted)',fontFamily:'var(--font-mono)',marginTop:12}},
+              'Last scrape: ', React.createElement('span',{style:{color:'var(--text)'}},fmt.datetime(info.last_scrape))
+            ),
+            info.is_stale && React.createElement('div',{style:{
+              marginTop:10,padding:'8px 12px',background:'rgba(239,68,68,.08)',
+              border:'1px solid rgba(239,68,68,.2)',borderRadius:6,
+              fontSize:11,color:COLORS.red,fontFamily:'var(--font-mono)'
+            }},'⚠ Stale — data is more than 25 hours old')
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── 14. Recent Tenders ────────────────────────────────────────
+function ViewTenders() {
+  const [tenders, setTenders] = useState(null);
+  const [portal, setPortal] = useState('');
+
+  const load = () => {
+    let url = '/api/recent-tenders?limit=50';
+    if (portal) url += `&portal=${portal}`;
+    api(url).then(d => setTenders(d.tenders)).catch(()=>{});
+  };
+  useEffect(load, [portal]);
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'page-header'},
+      React.createElement('h2',null,'Recent Tenders'),
+      React.createElement('p',null,'Latest 50 tenders from all portals')
+    ),
+    React.createElement('div',{className:'filter-row'},
+      React.createElement('select',{className:'filter-select',value:portal,onChange:e=>setPortal(e.target.value)},
+        React.createElement('option',{value:''},'All Portals'),
+        PORTALS.map(p=>React.createElement('option',{key:p,value:p},p.toUpperCase()))
+      ),
+      React.createElement('button',{className:'btn btn-ghost btn-sm',onClick:load},'↻ Refresh')
+    ),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'tbl-wrap'},
+        !tenders ? React.createElement(Loading) :
+        React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,
+            ['Ref','Title','Portal','Status','Category','EMD','Published','Deadline','Docs'].map(h=>
+              React.createElement('th',{key:h},h)
+            )
+          )),
+          React.createElement('tbody',null,
+            tenders.map((t,i) => React.createElement('tr',{key:i},
+              React.createElement('td',null,t.reference_number||'—'),
+              React.createElement('td',{title:t.title,style:{maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.title),
+              React.createElement('td',null,React.createElement('span',{className:'badge badge-info'},t.source_portal?.toUpperCase())),
+              React.createElement('td',null,React.createElement(Badge,{v:t.status})),
+              React.createElement('td',null,t.category||'—'),
+              React.createElement('td',null,fmt.inr(t.emd_amount)),
+              React.createElement('td',null,fmt.date(t.date_published)),
+              React.createElement('td',null,fmt.date(t.deadline)),
+              React.createElement('td',null,t.document_count||0)
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// NAVIGATION CONFIG
+// ══════════════════════════════════════════════════════════════
+const NAV = [
+  { section: 'OVERVIEW' },
+  { id:'overview',     label:'Dashboard',       icon:'⬡', view: ViewOverview },
+  { id:'tenders',      label:'Recent Tenders',  icon:'📋', view: ViewTenders },
+
+  { section: 'MONITORING' },
+  { id:'run-history',  label:'Run History',     icon:'◷', view: ViewRunHistory },
+  { id:'health',       label:'Portal Health',   icon:'♥', view: ViewPortalHealth },
+  { id:'freshness',    label:'Data Freshness',  icon:'⏱', view: ViewFreshness },
+  { id:'response',     label:'Response Times',  icon:'⚡', view: ViewResponseTimes },
+  { id:'performance',  label:'Performance',     icon:'◈', view: ViewPerformance },
+
+  { section: 'DATA' },
+  { id:'analytics',    label:'Tender Analytics',icon:'◑', view: ViewAnalytics },
+  { id:'db-records',   label:'DB Records',      icon:'⊞', view: ViewDBRecords },
+  { id:'quality',      label:'Quality & Validation', icon:'✓', view: ViewQuality },
+
+  { section: 'OPERATIONS' },
+  { id:'jobs',         label:'Jobs & Trigger',  icon:'▶', view: ViewJobs },
+  { id:'alerts',       label:'Alerts',          icon:'◉', view: ViewAlerts },
+  { id:'errors',       label:'Error Intel',     icon:'⚑', view: ViewErrors },
+  { id:'diff',         label:'Run Diff',        icon:'⇄', view: ViewRunDiff },
+];
+
+// ══════════════════════════════════════════════════════════════
+// ROOT APP
+// ══════════════════════════════════════════════════════════════
+function App() {
+  const [active, setActive] = useState('overview');
+  const [time, setTime]     = useState(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const current = NAV.find(n => n.id === active);
+  const View = current?.view;
+
+  // Alert badge count
+  const [alertCount, setAlertCount] = useState(0);
+  useEffect(() => {
+    const load = () => api('/api/alerts').then(d=>setAlertCount(d.count)).catch(()=>{});
+    load();
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  return React.createElement('div',{className:'layout'},
+    // Sidebar
+    React.createElement('aside',{className:'sidebar'},
+      React.createElement('div',{className:'sidebar-logo'},
+        React.createElement('div',{className:'logo-mark'},'TENDER'),
+        React.createElement('div',{className:'logo-mark',style:{color:'var(--text)'}},'DAAS'),
+        React.createElement('div',{className:'logo-sub'},'Admin Dashboard v2')
+      ),
+      React.createElement('nav',{className:'nav'},
+        NAV.map((item,i) => {
+          if (item.section) return React.createElement('div',{key:i,className:'nav-section'},item.section);
+          return React.createElement('div',{
+            key:item.id, className:'nav-item '+(active===item.id?'active':''),
+            onClick:()=>setActive(item.id),
+          },
+            React.createElement('span',{className:'nav-icon'},item.icon),
+            React.createElement('span',null,item.label),
+            item.id==='alerts' && alertCount>0 && React.createElement('span',{
+              style:{marginLeft:'auto',background:COLORS.red,color:'#fff',borderRadius:10,
+                fontSize:9,padding:'1px 6px',fontFamily:'var(--font-mono)',fontWeight:700}
+            },alertCount)
+          );
+        })
+      ),
+      React.createElement('div',{className:'sidebar-footer'},
+        React.createElement('div',null,'🟢 ONLINE'),
+        React.createElement('div',{style:{marginTop:3}},time)
+      )
+    ),
+    // Main
+    React.createElement('main',{className:'main'},
+      React.createElement('div',{className:'topbar'},
+        React.createElement('span',{className:'page-title'},current?.label||''),
+        React.createElement('div',{className:'topbar-right'},
+          React.createElement('span',{className:'refresh-time'},time)
+        )
+      ),
+      React.createElement('div',{className:'content'},
+        View ? React.createElement(View) : React.createElement('div',{className:'loading'},'Not found')
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
