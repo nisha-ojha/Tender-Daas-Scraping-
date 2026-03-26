@@ -223,16 +223,28 @@ def _download_file(url: str, portal: str, ref: str) -> tuple[str | None, str | N
 # ══════════════════════════════════════════════════════════════
 def _get_tenders_with_docs(conn, batch_id: str) -> list:
     import psycopg2.extras
+
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         cur.execute("""
             SELECT id, reference_number, source_portal,
-                   document_urls, niche_metadata
+                   document_urls, niche_metadata, status
             FROM tenders
-            WHERE (document_count > 0 OR document_urls IS NOT NULL)
-              AND pdfs_downloaded = FALSE
-            ORDER BY created_at DESC
-            LIMIT 50
+            WHERE pdfs_downloaded = FALSE
+              AND (
+                  document_count > 0
+                  OR document_urls IS NOT NULL
+                  OR niche_metadata ? 'documents'
+              )
+            ORDER BY
+                CASE status
+                    WHEN 'open'    THEN 1
+                    WHEN 'closed'  THEN 2
+                    WHEN 'awarded' THEN 3
+                    ELSE 4
+                END,
+                created_at DESC
+            LIMIT 100
         """)
         return cur.fetchall()
     finally:
