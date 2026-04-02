@@ -46,7 +46,7 @@ def main():
     parser.add_argument(
         "--stage",
         default="all",
-        choices=["all", "scrape", "normalize", "pdf", "dedup"],
+        choices=["all", "scrape", "normalize", "dedup"],
 
         help="Which stage to run (default: all)",
     )

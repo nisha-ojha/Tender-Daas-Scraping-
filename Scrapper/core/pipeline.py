@@ -1,7 +1,7 @@
 """
 core/pipeline.py
 ----------------
-Pipeline runner: Scrape → Normalize → PDF Download → PDF Parse → Dedup
+Pipeline runner: Scrape → Normalize → Dedup
 """
 
 import importlib
@@ -25,8 +25,6 @@ def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
         "updated": 0,
         "errors": 0,
         "raw_records": 0,
-        "pdfs_downloaded": 0,
-        "pdfs_parsed": 0,
     }
 
     # ── Load portal modules ─────────────────────────────────────
@@ -61,69 +59,7 @@ def run_pipeline(portal: str, batch_id: str, stages: str = "all") -> dict:
             print(f"  ── DONE: {result['new']} tenders ──\n")
 
         # ============================================================
-        # STAGE 3: PDF DOWNLOAD
-        # ============================================================
-        if stages in ("all", "pdf"):
-            print(f"  ── Stage 3: PDF DOWNLOAD ({portal.upper()}) ──")
-
-            from core.pdf.downloader import run_download_stage
-
-            pdf_result = run_download_stage(conn, batch_id)
-            result["pdfs_downloaded"] = pdf_result.get("downloaded", 0)
-
-            print(f"  ── DONE: {result['pdfs_downloaded']} PDFs downloaded ──\n")
-
-        # ============================================================
-        # STAGE 4: PDF PARSE
-        # ============================================================
-        if stages in ("all", "pdf"):
-            print(f"  ── Stage 4: PDF PARSE ({portal.upper()}) ──")
-
-            from core.pdf.parser_rfs import parse_rfs_pdf, apply_rfs_data_to_tender
-            from core.pdf.classifier import classify_pdf_file
-            import psycopg2.extras
-
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-            cur.execute("""
-                SELECT id, tender_id, local_path, doc_name
-                FROM tender_documents
-                WHERE downloaded = TRUE
-                  AND parsed = FALSE
-                LIMIT 50
-            """)
-
-            docs = cur.fetchall()
-            cur.close()
-
-            parsed_count = 0
-
-            for doc in docs:
-                if not doc["local_path"]:
-                    continue
-
-                doc_type = classify_pdf_file(doc["local_path"], doc["doc_name"])
-
-                if doc_type in ("RfS", "RfP", "NIT"):
-                    data = parse_rfs_pdf(doc["local_path"])
-
-                    if data and "_parse_error" not in data:
-                        apply_rfs_data_to_tender(conn, doc["tender_id"], data)
-                        parsed_count += 1
-
-                cur2 = conn.cursor()
-                cur2.execute(
-                    "UPDATE tender_documents SET parsed=TRUE, parsed_at=NOW() WHERE id=%s",
-                    (doc["id"],)
-                )
-                cur2.close()
-
-            result["pdfs_parsed"] = parsed_count
-
-            print(f"  ── DONE: {parsed_count} PDFs parsed ──\n")
-
-        # ============================================================
-        # STAGE 5: DEDUP (placeholder)
+        # STAGE 3: DEDUP (placeholder)
         # ============================================================
         if stages in ("all", "dedup"):
             print(f"  ── Stage 5: DEDUP (not built yet) ──\n")

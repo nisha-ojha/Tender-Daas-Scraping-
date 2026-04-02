@@ -67,4 +67,4 @@ BROWSER_OPTIONS = {
 }
 
 # Safety limit: max pages of pagination per URL
-TEST_MAX_PAGES = 2
+TEST_MAX_PAGES = 0

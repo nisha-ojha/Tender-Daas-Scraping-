@@ -300,7 +300,7 @@ class BasePortalScraper(ABC):
 
             # Skip if already in DB — but still save listing data to raw_records
             if ref:
-                existing = find_by_reference(conn, ref, self.PORTAL_SHORT)
+                existing = find_by_reference(conn, ref, self.PORTAL_NAME)
                 if existing:
                     insert_raw_record(conn, self.PORTAL_NAME, raw_record, batch_id)
                     skipped += 1
